@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ReceiptSense</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1><span class="logo">🧾</span> ReceiptSense</h1>
+  </header>
+
+  <!-- Upload area -->
+  <section id="uploader" class="card">
+    <h2>Upload new receipt</h2>
+    <div class="upload-row">
+      <input type="file" id="file" accept="image/*,application/pdf">
+      <button id="send" class="btn">Upload</button>
+    </div>
+    <p id="up-msg" class="msg"></p>
+  </section>
+
+  <!-- Filter + table -->
+  <section id="results" class="card">
+    <div class="results-header">
+      <h2>Receipts</h2>
+      <button id="refresh" class="btn">Refresh</button>
+    </div>
+
+    <label class="filter">
+      Vendor filter:
+      <input type="text" id="vendor" placeholder="e.g. costco">
+    </label>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Vendor</th><th>Total</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <small>Built for the AWS Lambda Hackathon · Dark&nbsp;UI v1</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
