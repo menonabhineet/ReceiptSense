@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ReceiptSense – serverless receipt OCR & expense storage
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 512
+
+Resources:
+
+  ReceiptsBucket:
+    Type: AWS::S3::Bucket
+
+  ProcessReceiptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.handler
+      CodeUri: src/
+      Policies:
+        - Statement:                   
+          - Effect: Allow
+            Action: s3:GetObject
+            Resource: "*"
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ExpensesTable
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action:
+                - textract:AnalyzeExpense
+              Resource: "*"
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ExpensesTable
+      Events:
+        S3Upload:
+          Type: S3
+          Properties:
+            Bucket: !Ref ReceiptsBucket
+            Events: s3:ObjectCreated:*       # trigger on every upload
+            Filter:                          # (optional) only JPEG & PNG
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .jpg
+
+  ExpensesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: ReceiptId
+          AttributeType: S
+        - AttributeName: Vendor          
+          AttributeType: S
+        - AttributeName: TxDate          
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ReceiptId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:          
+        - IndexName: VendorIndex
+          KeySchema:
+            - AttributeName: Vendor
+              KeyType: HASH
+          Projection: { ProjectionType: ALL }
+        - IndexName: DateIndex
+          KeySchema:
+            - AttributeName: TxDate
+              KeyType: HASH
+          Projection: { ProjectionType: ALL }
+
+  ExpensesApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors: "'*'"
+
+  QueryExpensesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: query.handler
+      CodeUri: src/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ExpensesTable
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ExpensesTable
+      Events:
+        GetExpenses:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExpensesApi
+            Path: /expenses
+            Method: get
+  
+  PresignFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: presign.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3WritePolicy:
+            BucketName: !Ref ReceiptsBucket
+      Environment:
+        Variables:
+          BUCKET: !Ref ReceiptsBucket
+      Events:
+        PostUpload:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExpensesApi
+            Path: /upload
+            Method: post
+        CorsPreflight:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExpensesApi
+            Path: /upload
+            Method: options

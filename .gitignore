@@ -1,1 +1,12 @@
+# Python / SAM
+__pycache__/
+*.pyc
 .aws-sam/
+.venv/
+.env
+
+# OS
+.DS_Store
+
+# Frontend build artefacts (none yet)
+*.log
