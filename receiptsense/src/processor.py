@@ -19,6 +19,33 @@ def _norm_date(txt: str) -> str:
     except Exception:
         return "1970-01-01"
 
+def _vendor_norm(raw: str) -> str:
+    """
+    Ask Claude-3 Sonnet to return the canonical brand name in lowercase.
+    Fallback to simple lower() if Bedrock fails or quota exhausted.
+    """
+    prompt = (
+        f'Return only the canonical vendor name in lowercase for: "{raw}". '
+        "Do not add extra words.\nAnswer:"
+    )
+    try:
+        body = {
+            "modelId": "anthropic.claude-3-sonnet-20240229-v1:0",
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 10,
+            "temperature": 0
+        }
+        resp = bedrock.invoke_model(
+            body=json.dumps(body),
+            contentType="application/json",
+            accept="application/json"
+        )
+        norm = json.loads(resp["body"].read())["content"][0]["text"].strip()
+        norm = re.sub(r"\s+", " ", norm).lower()
+        return norm or raw.lower()
+    except Exception as e:
+        logging.warning("Bedrock normaliser failed → %s", e)
+        return raw.lower()
 
 def handler(event, _ctx):
     rec   = event["Records"][0]["s3"]
@@ -55,6 +82,7 @@ def handler(event, _ctx):
         "ReceiptId": str(uuid.uuid4()),
         "Vendor":    vendor,
         "TxDate":    _norm_date(date),
+        "VendorNorm": _vendor_norm(vendor),
         "FileKey":   key,
         "Total":     _norm_total(total),
         "Items":     line_items,

@@ -1,4 +1,3 @@
-# src/presign.py
 import os, json, boto3, uuid
 
 s3 = boto3.client("s3")
