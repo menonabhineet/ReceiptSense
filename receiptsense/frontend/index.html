@@ -25,18 +25,22 @@
   <section id="results" class="card">
     <div class="results-header">
       <h2>Receipts</h2>
-      <button id="refresh" class="btn">Refresh</button>
+      <button id="refresh" class="btn">Filter</button>
+      <button id="dl" class="btn">Download CSV</button>
+      <button id="graph" class="btn">Generate graph</button>
+      <button id="reset"   class="btn">Reset filters</button>
     </div>
 
     <label class="filter">
       Vendor filter:
-      <input type="text" id="vendor" placeholder="e.g. costco">
+      <input type="text" id="vendor" placeholder="e.g. costco"> Month: <input type="month" id="month">
     </label>
+  
 
     <div class="table-wrapper">
       <table>
         <thead>
-          <tr><th>Date</th><th>Vendor</th><th>Total</th></tr>
+          <tr><th>Date</th><th>Vendor</th><th>Category</th><th>Total</th><th>Delete</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -44,8 +48,16 @@
   </section>
 
   <footer>
-    <small>Built for the AWS Lambda Hackathon · Dark&nbsp;UI v1</small>
+    <small>Built for the AWS Lambda Hackathon</small>
   </footer>
+
+<div id="chartModal" class="modal">
+  <div class="modal-content">
+    <span id="closeModal">&times;</span>
+    <canvas id="pie" width="360" height="360" style="aspect-ratio:1/1"></canvas>
+    <div id="legend" class="legend"></div>
+  </div>
+</div>
 
   <script src="app.js"></script>
 </body>

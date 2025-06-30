@@ -31,6 +31,10 @@ Resources:
               Action:
                 - textract:AnalyzeExpense
               Resource: "*"
+        - Statement:
+          - Effect: Allow
+            Action: bedrock:InvokeModel
+            Resource: "*"
       Environment:
         Variables:
           TABLE_NAME: !Ref ExpensesTable
@@ -39,8 +43,8 @@ Resources:
           Type: S3
           Properties:
             Bucket: !Ref ReceiptsBucket
-            Events: s3:ObjectCreated:*       # trigger on every upload
-            Filter:                          # (optional) only JPEG & PNG
+            Events: s3:ObjectCreated:*       
+            Filter:                          
               S3Key:
                 Rules:
                   - Name: suffix
@@ -55,6 +59,10 @@ Resources:
         - AttributeName: Vendor          
           AttributeType: S
         - AttributeName: TxDate          
+          AttributeType: S
+        - AttributeName: VendorNorm
+          AttributeType: S
+        - AttributeName: Category
           AttributeType: S
       KeySchema:
         - AttributeName: ReceiptId
@@ -71,12 +79,24 @@ Resources:
             - AttributeName: TxDate
               KeyType: HASH
           Projection: { ProjectionType: ALL }
+        - IndexName: VendorNormIndex
+          KeySchema:
+            - AttributeName: VendorNorm
+              KeyType: HASH
+          Projection: {ProjectionType: ALL}
+        - IndexName: CategoryIndex
+          KeySchema:
+            - AttributeName: Category
+              KeyType: HASH
+          Projection: {ProjectionType: ALL}
 
   ExpensesApi:
     Type: AWS::Serverless::Api
     Properties:
       StageName: prod
-      Cors: "'*'"
+      Cors:
+        AllowOrigin: "'*'"
+        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
 
   QueryExpensesFunction:
     Type: AWS::Serverless::Function
@@ -123,3 +143,50 @@ Resources:
             RestApiId: !Ref ExpensesApi
             Path: /upload
             Method: options
+  
+  ExportCSVFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: export_csv.handler
+      Runtime: python3.12
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ExpensesTable
+        - S3WritePolicy:
+            BucketName: !Ref ReceiptsBucket   
+        - S3ReadPolicy:           
+            BucketName: !Ref ReceiptsBucket
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          TABLE_NAME:  !Ref ExpensesTable
+          BUCKET_NAME: !Ref ReceiptsBucket
+      Events:
+        Export:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExpensesApi
+            Path: /export
+            Method: get
+
+  DeleteReceiptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: delete_receipt.handler
+      Runtime: python3.12
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ExpensesTable
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ExpensesTable
+      Events:
+        Delete:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ExpensesApi
+            Path: /expenses/{rid}
+            Method: delete
